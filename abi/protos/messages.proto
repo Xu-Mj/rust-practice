@@ -52,9 +52,19 @@ message SendMsgRequest {
   }
   
   /// chat服务rpc接口
-  service ChatService {
+service ChatService {
     rpc SendMsg(SendMsgRequest) returns (MsgResponse);
-  }
+}
+
+  // SendMsgRequest我们在前面已经定义了，这里直接复用即可
+message SendMsgResponse {}
+
+service MsgService {
+  // send message through rpc
+  rpc SendMessage(SendMsgRequest) returns (SendMsgResponse);
+  // send single message to user by websocket
+  rpc SendMsgToUser(SendMsgRequest) returns (SendMsgResponse);
+}
 // /// 消息发送参数
 // message SendMsgRequest {
 //   Msg message = 1;

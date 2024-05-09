@@ -47,6 +47,8 @@ pub struct WsServerConfig {
     pub protocol: String,
     pub host: String,
     pub port: u16,
+    pub name: String,
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]

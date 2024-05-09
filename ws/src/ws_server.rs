@@ -1,12 +1,21 @@
 use std::{sync::Arc, time::Duration};
 
 use abi::config::Config;
-use axum::{extract::{ws::{Message, WebSocket}, Path, State, WebSocketUpgrade}, response::IntoResponse, routing::get, Router};
+use axum::{
+    extract::{
+        ws::{Message, WebSocket},
+        Path, State, WebSocketUpgrade,
+    },
+    response::IntoResponse,
+    routing::get,
+    Router,
+};
 use futures::{SinkExt, StreamExt};
 use tokio::sync::{mpsc, RwLock};
 use tracing::{error, info};
+use utils::typos::Registration;
 
-use crate::{client::Client, manager::Manager};
+use crate::{client::Client, manager::Manager, rpc::MsgRpcService};
 
 /// 常量 心跳消息的发送间隔时间（秒）。
 pub const HEART_BEAT_INTERVAL: u64 = 30;
@@ -14,11 +23,10 @@ pub const HEART_BEAT_INTERVAL: u64 = 30;
 pub struct AppState {
     manager: Manager,
 }
-
 pub async fn start(config: Config) {
     // 创建通道，用来从websocket连接中向manager发送消息。
     let (tx, rx) = mpsc::channel(1024);
-    let hub = Manager::new(tx);
+    let hub = Manager::new(tx, &config).await;
     let mut cloned_hub = hub.clone();
     tokio::spawn(async move {
         cloned_hub.run(rx).await;
@@ -34,9 +42,40 @@ pub async fn start(config: Config) {
 
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
     info!("start websocket server on {}", addr);
-    axum::serve(listener, router).await.unwrap();
-}
+    let mut ws = tokio::spawn(async move {
+        println!("start websocket server on {}", addr);
+        axum::serve(listener, router).await.unwrap();
+    });
 
+    // register websocket service to consul
+    register_service(&config).await;
+
+    let config = config.clone();
+    let mut rpc = tokio::spawn(async move {
+        // start rpc server
+        MsgRpcService::start(hub, &config).await;
+    });
+    tokio::select! {
+        _ = (&mut ws) => ws.abort(),
+        _ = (&mut rpc) => rpc.abort(),
+    }
+}
+async fn register_service(config: &Config) {
+    // register service to service register center
+    let center = utils::service_register_center(config);
+    let registration = Registration {
+        id: format!(
+            "{}-{}",
+            utils::get_host_name().unwrap(),
+            &config.websocket.name
+        ),
+        name: config.websocket.name.clone(),
+        address: config.websocket.host.clone(),
+        port: config.websocket.port,
+        tags: config.websocket.tags.clone(),
+    };
+    center.register(registration).await.unwrap();
+}
 pub async fn websocket_handler(
     Path((user_id, token, pointer_id)): Path<(String, String, String)>,
     ws: WebSocketUpgrade,
@@ -44,7 +83,7 @@ pub async fn websocket_handler(
 ) -> impl IntoResponse {
     // validate token
     tracing::debug!("token is {}", token);
-    ws.on_upgrade(move |socket|websocket(user_id, pointer_id, socket, state))
+    ws.on_upgrade(move |socket| websocket(user_id, pointer_id, socket, state))
 }
 
 pub async fn websocket(user_id: String, pointer_id: String, ws: WebSocket, app_state: AppState) {
@@ -53,9 +92,9 @@ pub async fn websocket(user_id: String, pointer_id: String, ws: WebSocket, app_s
         user_id.clone(),
         pointer_id.clone()
     );
-    
+
     let mut hub = app_state.manager.clone();
-    
+
     // 将websocket连接切分成发送端和接收端
     let (ws_tx, mut ws_rx) = ws.split();
     // 将发送端进行包装，使得其能够在进程间安全的克隆

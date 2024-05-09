@@ -27,7 +27,6 @@ impl ConsulOptions {
     }
 }
 
-
 #[derive(Debug, Clone)]
 pub struct Consul {
     pub options: ConsulOptions,

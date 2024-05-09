@@ -33,17 +33,17 @@ impl tower::Service<http::Request<BoxBody>> for LbWithServiceDiscovery {
 
 pub struct DynamicServiceDiscovery {
     /// 服务名称
-   service_name: String,
-   /// 当前服务对应的可用服务列表
-   services: HashSet<SocketAddr>,
-   /// 操作channel，通过此channel向我们的服务发送添加/删除操作
-   sender: mpsc::Sender<Change<SocketAddr, Endpoint>>,
-   /// 服务发现周期
-   dis_interval: tokio::time::Duration,
-   /// 服务注册中心
-   service_center: Arc<dyn ServiceRegister>,
-   /// http/https
-   schema: String,
+    service_name: String,
+    /// 当前服务对应的可用服务列表
+    services: HashSet<SocketAddr>,
+    /// 操作channel，通过此channel向我们的服务发送添加/删除操作
+    sender: mpsc::Sender<Change<SocketAddr, Endpoint>>,
+    /// 服务发现周期
+    dis_interval: tokio::time::Duration,
+    /// 服务注册中心
+    service_center: Arc<dyn ServiceRegister>,
+    /// http/https
+    schema: String,
 }
 
 impl DynamicServiceDiscovery {
@@ -64,7 +64,7 @@ impl DynamicServiceDiscovery {
             schema,
         }
     }
-    
+
     pub fn new(
         service_center: Arc<dyn ServiceRegister>,
         service_name: String,
@@ -83,65 +83,65 @@ impl DynamicServiceDiscovery {
     }
 
     /// execute discovery once
-pub async fn discovery(&mut self) -> Result<(), Error> {
-    //get services from service register center
-    let map = self
-        .service_center
-        .filter_by_name(&self.service_name)
-        .await?;
-    let x = map
-        .values()
-        .filter_map(|v| match format!("{}:{}", v.address, v.port).parse() {
-            Ok(s) => Some(s),
-            Err(e) => {
-                warn!("parse address error:{}", e);
-                None
+    pub async fn discovery(&mut self) -> Result<(), Error> {
+        //get services from service register center
+        let map = self
+            .service_center
+            .filter_by_name(&self.service_name)
+            .await?;
+        let x = map
+            .values()
+            .filter_map(|v| match format!("{}:{}", v.address, v.port).parse() {
+                Ok(s) => Some(s),
+                Err(e) => {
+                    warn!("parse address error:{}", e);
+                    None
+                }
+            })
+            .collect();
+        let change_set = self.change_set(&x).await;
+        for change in change_set {
+            self.sender
+                .send(change)
+                .await
+                .map_err(|e| Error::InternalServer(e.to_string()))?;
+        }
+        self.services = x;
+        Ok(())
+    }
+
+    async fn change_set(
+        &self,
+        endpoints: &HashSet<SocketAddr>,
+    ) -> Vec<Change<SocketAddr, Endpoint>> {
+        let mut changes = Vec::new();
+        for s in endpoints.difference(&self.services) {
+            if let Some(endpoint) = self.build_endpoint(*s).await {
+                changes.push(Change::Insert(*s, endpoint));
             }
-        })
-        .collect();
-    let change_set = self.change_set(&x).await;
-    for change in change_set {
-        self.sender
-            .send(change)
-            .await
-            .map_err(|e| Error::InternalServer(e.to_string()))?;
+        }
+        for s in self.services.difference(endpoints) {
+            changes.push(Change::Remove(*s));
+        }
+        changes
     }
-    self.services = x;
-    Ok(())
-}
 
-async fn change_set(
-    &self,
-    endpoints: &HashSet<SocketAddr>,
-) -> Vec<Change<SocketAddr, Endpoint>> {
-    let mut changes = Vec::new();
-    for s in endpoints.difference(&self.services) {
-        if let Some(endpoint) = self.build_endpoint(*s).await {
-            changes.push(Change::Insert(*s, endpoint));
+    async fn build_endpoint(&self, address: SocketAddr) -> Option<Endpoint> {
+        let url = format!("{}://{}:{}", self.schema, address.ip(), address.port());
+        let endpoint = Endpoint::from_shared(url)
+            .map_err(|e| warn!("build endpoint error:{:?}", e))
+            .ok()?;
+        Some(endpoint)
+    }
+    pub async fn run(mut self) -> Result<(), Error> {
+        loop {
+            tokio::time::sleep(self.dis_interval).await;
+            // get services from service register center
+            if let Err(e) = self.discovery().await {
+                error!("discovery error:{}", e);
+            }
         }
     }
-    for s in self.services.difference(endpoints) {
-        changes.push(Change::Remove(*s));
-    }
-    changes
-}
-
-async fn build_endpoint(&self, address: SocketAddr) -> Option<Endpoint> {
-    let url = format!("{}://{}:{}", self.schema, address.ip(), address.port());
-    let endpoint = Endpoint::from_shared(url)
-        .map_err(|e| warn!("build endpoint error:{:?}", e))
-        .ok()?;
-    Some(endpoint)
-}
-pub async fn run(mut self) -> Result<(), Error> {
-    loop {
-        tokio::time::sleep(self.dis_interval).await;
-        // get services from service register center
-        if let Err(e) = self.discovery().await {
-            error!("discovery error:{}", e);
-        }
-    }
-}
 }
 
 pub async fn get_channel_with_config(

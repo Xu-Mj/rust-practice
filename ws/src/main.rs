@@ -2,8 +2,8 @@ use tracing::Level;
 
 mod client;
 mod manager;
+mod rpc;
 pub mod ws_server;
-
 #[tokio::main]
 async fn main() {
     // 设置日志等级

@@ -3113,8 +3113,10 @@ dependencies = [
  "futures",
  "serde_json",
  "tokio",
+ "tonic",
  "tracing",
  "tracing-subscriber",
+ "utils",
 ]
 
 [[package]]

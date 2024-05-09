@@ -1,9 +1,13 @@
 use std::sync::Arc;
 
-use abi::message::Msg;
+use abi::{
+    config::Config,
+    message::{chat_service_client::ChatServiceClient, ContentType, Msg, MsgType, SendMsgRequest},
+};
 use dashmap::DashMap;
 use tokio::sync::mpsc::{self, error::SendError};
 use tracing::{debug, error, info};
+use utils::LbWithServiceDiscovery;
 
 use crate::client::Client;
 
@@ -18,17 +22,73 @@ type Hub = Arc<DashMap<UserID, DashMap<PlatformID, Client>>>;
 /// manage the client
 #[derive(Clone)]
 pub struct Manager {
-    /// 用来接收websocket收到的消息; tokio::sync::mpsc; Msg是我们基础设置中生成的Msg结构体
+    /// 用来接收websocket收到的消息
     tx: mpsc::Sender<Msg>,
     /// 存储用户与服务端的连接
     pub hub: Hub,
+    /// 新增。chat服务的gRPC客户端
+    pub chat_rpc: ChatServiceClient<LbWithServiceDiscovery>,
 }
-
 impl Manager {
-    pub fn new(tx: mpsc::Sender<Msg>) -> Self {
+    /// 修改new方法，增加chat_rpc客户端获取
+    pub async fn new(tx: mpsc::Sender<Msg>, config: &Config) -> Self {
+        let chat_rpc = Self::get_chat_rpc_client(config).await;
         Self {
+            chat_rpc,
             tx,
             hub: Arc::new(DashMap::new()),
+        }
+    }
+
+    /// 新增rpc客户端获取方法
+    async fn get_chat_rpc_client(config: &Config) -> ChatServiceClient<LbWithServiceDiscovery> {
+        // use service register center to get ws rpc url
+        let channel = utils::get_channel_with_config(
+            config,
+            &config.rpc.chat.name,
+            &config.rpc.chat.protocol,
+        )
+        .await
+        .unwrap();
+        ChatServiceClient::new(channel)
+    }
+
+    /// 修改run方法，将消息数据通过gRPC的方式发送到chat服务中
+    pub async fn run(&mut self, mut receiver: mpsc::Receiver<Msg>) {
+        info!("manager start");
+        // 循环读取消息
+        while let Some(mut message) = receiver.recv().await {
+            // 请求chat服务，将消息发送到chat服务中，chat服务会返回一个server_id和send_time
+            debug!("receive message: {:?}", message);
+            match self
+                .chat_rpc
+                .send_msg(SendMsgRequest {
+                    message: Some(message.clone()),
+                })
+                .await
+            {
+                Ok(res) => {
+                    // 请求成功，我们就认为这条消息发送成功了，向发送者返回发送成功的消息
+                    let response = res.into_inner();
+                    if response.err.is_empty() {
+                        debug!("send message success");
+                    } else {
+                        error!("send message error: {:?}", response.err);
+                        message.content_type = ContentType::Error as i32;
+                    }
+                    message.msg_type = MsgType::MsgRecResp as i32;
+                    message.server_id = response.server_id.clone();
+                    message.content = response.err;
+                }
+                Err(err) => {
+                    error!("send message error: {:?}", err);
+                    message.content = err.to_string();
+                }
+            }
+
+            // reply result to sender
+            println!("reply message:{:?}", message);
+            self.send_single_msg(&message.send_id, &message).await;
         }
     }
     pub async fn register(&mut self, user_id: UserID, client: Client) {
@@ -58,16 +118,6 @@ impl Manager {
     pub async fn send_single_msg(&self, user_id: &UserID, msg: &Msg) {
         if let Some(clients) = self.hub.get(user_id) {
             self.send_msg_to_clients(&clients, msg).await;
-        }
-    }
-
-    pub async fn run(&mut self, mut receiver: mpsc::Receiver<Msg>) {
-        info!("manager start");
-        // 循环读取消息
-        while let Some(message) = receiver.recv().await {
-            // request the message rpc to get server_msg_id
-            debug!("receive message: {:?}", message);
-            self.send_single_msg(&message.receiver_id, &message).await;
         }
     }
 
