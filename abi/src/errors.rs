@@ -14,7 +14,7 @@ pub enum Error {
 
     #[error("database errors{0}")]
     DbError(sqlx::Error),
-    
+
     #[error("reqwest error: {0}")]
     ReqwestError(reqwest::Error),
 }

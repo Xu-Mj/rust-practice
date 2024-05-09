@@ -40,7 +40,21 @@ message Msg {
   // 已读状态
   bool is_read = 11;
 }
-
+message SendMsgRequest {
+    Msg message = 1;
+  }
+  
+  message MsgResponse {
+    string local_id = 1;
+    string server_id = 2;
+    int64  send_time = 3;
+    string err = 4;
+  }
+  
+  /// chat服务rpc接口
+  service ChatService {
+    rpc SendMsg(SendMsgRequest) returns (MsgResponse);
+  }
 // /// 消息发送参数
 // message SendMsgRequest {
 //   Msg message = 1;

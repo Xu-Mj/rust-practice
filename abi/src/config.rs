@@ -9,7 +9,7 @@ pub struct Config {
     pub rpc: RpcConfig,
     pub redis: RedisConfig,
     pub service_center: ServiceCenterConfig,
-	pub db: PostgresConfig,
+    pub db: PostgresConfig,
 }
 
 impl Config {
