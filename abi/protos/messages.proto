@@ -75,6 +75,10 @@ message SaveMessageRequest {
   service DbService {
     rpc SaveMessage(SaveMessageRequest) returns (SaveMessageResponse);
   }
+  // SendMsgRequest SendMsgResponse前面我们已经定义了 
+service PushService {
+    rpc PushSingleMsg(SendMsgRequest) returns (SendMsgResponse);
+  }
 // /// 消息发送参数
 // message SendMsgRequest {
 //   Msg message = 1;
