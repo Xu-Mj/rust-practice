@@ -1,0 +1,89 @@
+// 声明版本以及包名
+syntax = "proto3";
+package message;
+
+// 消息内容类型
+enum ContentType {
+  Default = 0;
+  Text = 1;
+  Error = 2;
+}
+
+// 消息类型
+enum MsgType{
+  MsgTypeSingleMsg = 0;
+  MsgRecResp = 1;
+}
+
+/// 消息对象
+message Msg {
+  // 发送者id
+  string send_id = 1;
+  // 接收者id
+  string receiver_id = 2;
+  // 消息的本地id，用来更新已发送消息的状态和server_id
+  string local_id = 3;
+  // 消息的服务端id
+  string server_id = 4;
+  // timestamp时间戳
+  int64 create_time = 5;
+  // 发送时间，由服务端生成
+  int64 send_time = 6;
+  // 消息序列化，用来保证消息的可靠性和消息的有序行
+  int64 seq = 7;
+  // 消息类型
+  MsgType msg_type = 8;
+  // 消息内容类型
+  ContentType content_type = 9;
+  // 消息内容
+  string content = 10;
+  // 已读状态
+  bool is_read = 11;
+}
+
+// /// 消息发送参数
+// message SendMsgRequest {
+//   Msg message = 1;
+// }
+
+// // 消息发送结果
+// message MsgResponse {
+//   string local_id = 1;
+//   string server_id = 2;
+//   int64  send_time = 3;
+//   string err = 4;
+// }
+
+// /// 发送到数据库参数
+// message SaveMessageRequest {
+//   Msg message = 1;
+// }
+
+// message SaveMessageResponse {}
+
+// message SendMsgResponse {}
+
+// /// chat service, receive message then generate message id and send message to mq;
+// /// response operation result;
+// service ChatService {
+//   rpc SendMsg(SendMsgRequest) returns (MsgResponse);
+// }
+
+// /// db interface think about if it is necessary to put api interface together.
+// service DbService {
+//   /// save message to postgres and mongodb
+//   /// use same table and collection to save the single message and group message
+//   rpc SaveMessage(SaveMessageRequest) returns (SaveMessageResponse);
+// }
+
+// service PushService {
+//   /// push single message to message gateway
+//   rpc PushSingleMsg(SendMsgRequest) returns (SendMsgResponse);
+// }
+
+// service MsgService {
+//   // send message through rpc
+//   rpc SendMessage(SendMsgRequest) returns (SendMsgResponse);
+//   // send single message to user by websocket
+//   rpc SendMsgToUser(SendMsgRequest) returns (SendMsgResponse);
+// }
