@@ -65,6 +65,16 @@ service MsgService {
   // send single message to user by websocket
   rpc SendMsgToUser(SendMsgRequest) returns (SendMsgResponse);
 }
+
+message SaveMessageRequest {
+    Msg message = 1;
+  }
+  
+  message SaveMessageResponse {}
+  
+  service DbService {
+    rpc SaveMessage(SaveMessageRequest) returns (SaveMessageResponse);
+  }
 // /// 消息发送参数
 // message SendMsgRequest {
 //   Msg message = 1;

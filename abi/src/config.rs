@@ -33,6 +33,20 @@ pub struct PostgresConfig {
 fn default_conn() -> u32 {
     5
 }
+impl PostgresConfig {
+    pub fn server_url(&self) -> String {
+        if self.password.is_empty() {
+            return format!("postgres://{}@{}:{}", self.user, self.host, self.port);
+        }
+        format!(
+            "postgres://{}:{}@{}:{}",
+            self.user, self.password, self.host, self.port
+        )
+    }
+    pub fn url(&self) -> String {
+        format!("{}/{}", self.server_url(), self.database)
+    }
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct ServiceCenterConfig {

@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use abi::config::Config;
 use ::redis::RedisError;
+use abi::config::Config;
 
 mod redis;
 
