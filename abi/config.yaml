@@ -1,4 +1,3 @@
-# 
 websocket:
   protocol: ws
   host: 127.0.0.1
@@ -7,3 +6,71 @@ websocket:
   tags:
     - websocket
     - grpc
+    
+kafka:
+  hosts:
+    - 127.0.0.1:9092
+  topic: sandcat-chat
+  group: chat
+  producer:
+    timeout: 3000
+    acks: all # 0: no response, 1: leader response, all: all response
+    max_retry: 3
+    retry_interval: 1000 # retry interval in milliseconds
+  consumer:
+    auto_offset_reset: earliest # earliest, latest
+    session_timeout: 20000
+
+db:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  database: im
+  
+redis:
+  host: localhost
+  port: 6379
+
+service_center:
+  host: 127.0.0.1
+  port: 8500
+  timeout: 5000
+  protocol: http
+
+rpc:
+  ws:
+    protocol: http
+    host: 127.0.0.1
+    port: 50002
+    name: ws
+    tags:
+      - ws
+      - grpc
+    grpc_health_check:
+      grpc_use_tls: false
+      interval: 30 # second
+  chat:
+    protocol: http
+    host: 127.0.0.1
+    port: 50003
+    name: chat
+    tags:
+      - chat
+      - grpc
+  db:
+    protocol: http
+    host: 127.0.0.1
+    port: 50004
+    name: db
+    tags:
+      - db
+      - grpc
+  pusher:
+    protocol: http
+    host: 127.0.0.1
+    port: 50005
+    name: pusher
+    tags:
+      - pusher
+      - grpc
