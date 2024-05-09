@@ -8,7 +8,7 @@ use rdkafka::error::KafkaError;
 use rdkafka::producer::{FutureProducer, FutureRecord};
 use rdkafka::ClientConfig;
 use tonic::transport::Server;
-use tracing::{error, info, Level};
+use tracing::{debug, error, info, Level};
 
 use abi::config::Config;
 use abi::message::chat_service_server::{ChatService, ChatServiceServer};
@@ -126,6 +126,8 @@ impl ChatService for ChatRpcService {
 
         let mut msg = inner.unwrap();
 
+        debug!("send msg: {:?}", msg);
+        
         // generate msg id
         msg.server_id = nanoid!();
         msg.send_time = chrono::Local::now()
