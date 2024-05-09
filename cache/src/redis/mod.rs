@@ -1,7 +1,7 @@
 use crate::Cache;
-use abi::config::Config;
+use abi::{config::Config, errors::Error};
 use async_trait::async_trait;
-use redis::{AsyncCommands, RedisError};
+use redis::AsyncCommands;
 
 #[derive(Debug)]
 pub struct RedisCache {
@@ -9,10 +9,6 @@ pub struct RedisCache {
 }
 
 impl RedisCache {
-    #[allow(dead_code)]
-    pub fn new(client: redis::Client) -> Self {
-        Self { client }
-    }
     pub fn from_config(config: &Config) -> Self {
         // Intentionally use unwrap to ensure Redis connection at startup.
         // Program should panic if unable to connect to Redis, as it's critical for operation.
@@ -23,7 +19,7 @@ impl RedisCache {
 
 #[async_trait]
 impl Cache for RedisCache {
-    async fn get_seq(&self, user_id: &str) -> Result<i64, RedisError> {
+    async fn get_seq(&self, user_id: &str) -> Result<i64, Error> {
         // generate key
         let key = format!("seq:{}", user_id);
 
@@ -34,7 +30,7 @@ impl Cache for RedisCache {
         Ok(seq)
     }
 
-    async fn increase_seq(&self, user_id: &str) -> Result<i64, RedisError> {
+    async fn increase_seq(&self, user_id: &str) -> Result<i64, Error> {
         // generate key
         let key = format!("seq:{}", user_id);
 

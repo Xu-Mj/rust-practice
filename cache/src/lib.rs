@@ -1,19 +1,18 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use abi::errors::Error;
 use async_trait::async_trait;
 
-use ::redis::RedisError;
 use abi::config::Config;
 
 mod redis;
 
 #[async_trait]
 pub trait Cache: Sync + Send + Debug {
-    /// 获取seq
-    async fn get_seq(&self, user_id: &str) -> Result<i64, RedisError>;
-    /// 增加指定用户的sequence
-    async fn increase_seq(&self, user_id: &str) -> Result<i64, RedisError>;
+    /// query sequence by user id
+    async fn get_seq(&self, user_id: &str) -> Result<i64, Error>;
+    async fn increase_seq(&self, user_id: &str) -> Result<i64, Error>;
 }
 
 pub fn cache(config: &Config) -> Arc<dyn Cache> {
