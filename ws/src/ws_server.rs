@@ -77,12 +77,10 @@ async fn register_service(config: &Config) {
     center.register(registration).await.unwrap();
 }
 pub async fn websocket_handler(
-    Path((user_id, token, pointer_id)): Path<(String, String, String)>,
+    Path((user_id, pointer_id)): Path<(String, String)>,
     ws: WebSocketUpgrade,
     State(state): State<AppState>,
 ) -> impl IntoResponse {
-    // validate token
-    tracing::debug!("token is {}", token);
     ws.on_upgrade(move |socket| websocket(user_id, pointer_id, socket, state))
 }
 
