@@ -1,1 +1,5 @@
-/target
+sandcat_prectice/target
+sandcat_prectice/Cargo.lock
+.idea
+list/Cargo.lock
+list/target
