@@ -6,6 +6,7 @@ fn main() {
     list.append(2);
     list.push(12);
     println!("{:?}", list.pop());
+    println!("{:?}", list.pop());
     println!("{:?}", list.pop_back());
     println!("{:?}", list)
 }
@@ -82,15 +83,11 @@ impl<T> LinkedList<T> {
 
     /// 弹出第一个节点数据
     pub fn pop(&mut self) -> Option<T> {
-        let mut node = None;
-        let mut result = None;
-        if let Some(mut head) = self.head.take() {
-            node = head.next.take();
-            result = Some(head.value);
-        }
-        self.size -= 1;
-        self.head = node;
-        result
+        self.head.take().map(|node| {
+            self.size -= 1;
+            self.head = node.next;
+            node.value
+        })
     }
 
     /// 弹出最后一个
